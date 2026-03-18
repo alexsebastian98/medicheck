@@ -14,6 +14,12 @@ class SeverityEngine:
         SeverityLevel.high: 3,
     }
 
+    severity_score = {
+        SeverityLevel.low: 0.2,
+        SeverityLevel.moderate: 0.6,
+        SeverityLevel.high: 0.9,
+    }
+
     def derive_overall(
         self,
         interactions: list[InteractionFinding],
@@ -23,3 +29,6 @@ class SeverityEngine:
         if not levels:
             return SeverityLevel.low
         return max(levels, key=lambda level: self.severity_rank[level])
+
+    def score_for(self, severity: SeverityLevel) -> float:
+        return self.severity_score[severity]

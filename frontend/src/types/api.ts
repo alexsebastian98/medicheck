@@ -16,17 +16,21 @@ export interface DrugMatch {
 }
 
 export interface InteractionFinding {
+  id: string;
   drug_a: string;
   drug_b: string;
   severity: SeverityLevel;
+  severity_score: number;
   mechanism: string;
   description: string;
   source: string;
 }
 
 export interface SideEffectAggregate {
-  effect: string;
+  id: string;
+  side_effect: string;
   drugs: string[];
+  severity_score: number;
   frequency_hint?: string | null;
 }
 
@@ -36,20 +40,18 @@ export interface WarningItem {
   severity: SeverityLevel;
 }
 
-export interface ExplanationBlock {
-  simple: string;
-  clinical: string;
-}
-
 export interface CheckInteractionsResponse {
   request_id: string;
   timestamp: string;
   language: SupportedLanguage;
   normalized_drugs: DrugMatch[];
   overall_severity: SeverityLevel;
+  overall_severity_score: number;
   interactions: InteractionFinding[];
   overlapping_side_effects: SideEffectAggregate[];
+  monitoring_notes: string[];
   warnings: WarningItem[];
-  explanations: ExplanationBlock;
+  patient_explanation: string;
+  clinical_explanation: string;
   recommendations: string[];
 }

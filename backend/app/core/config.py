@@ -19,7 +19,12 @@ class Settings(BaseSettings):
     openfda_base_url: str = "https://api.fda.gov"
     rxnorm_base_url: str = "https://rxnav.nlm.nih.gov/REST"
 
-    allowed_origins: List[str] = ["http://localhost:5173"]
+    allowed_origins: List[str] = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
+    ]
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -10,7 +11,6 @@ from app.schemas.interaction import (
     CheckInteractionsResponse,
     DrugInfoResponse,
     DrugMatch,
-    ExplanationBlock,
     SeverityLevel,
 )
 from app.services.ai_explainer import AIExplainer
@@ -50,8 +50,12 @@ async def check_interactions(
     normalized_drugs = []
     drug_records = []
 
-    for drug_name in payload.drugs:
-        record = await drug_lookup.get_drug_info(drug_name)
+    # Resolve all submitted drugs concurrently to keep request latency stable.
+    records = await asyncio.gather(
+        *[drug_lookup.get_drug_info(drug_name, None) for drug_name in payload.drugs]
+    )
+
+    for drug_name, record in zip(payload.drugs, records):
         drug_records.append(record)
         normalized_drugs.append(
             DrugMatch(
@@ -61,8 +65,17 @@ async def check_interactions(
             )
         )
 
-    interactions = interaction_engine.detect_pairwise_interactions(drug_records)
+    interactions = await interaction_engine.detect_pairwise_interactions(drug_records, None)
+    for interaction in interactions:
+        interaction.severity_score = severity_engine.score_for(interaction.severity)
+
     side_effects = interaction_engine.aggregate_side_effects(drug_records)
+    monitoring_notes = interaction_engine.build_monitoring_notes(
+        drug_records,
+        interactions,
+        side_effects,
+        payload.lang,
+    )
 
     warnings = interaction_engine.detect_duplicate_class_usage(drug_records, payload.lang)
     warnings.extend(
@@ -75,7 +88,11 @@ async def check_interactions(
     )
 
     overall = severity_engine.derive_overall(interactions, warnings)
-    simple, clinical = await ai_explainer.generate_explanations(interactions, overall, payload.lang)
+    patient_explanation, clinical_explanation = await ai_explainer.generate_explanations(
+        interactions,
+        overall,
+        payload.lang,
+    )
 
     response = CheckInteractionsResponse(
         request_id=str(uuid4()),
@@ -83,26 +100,18 @@ async def check_interactions(
         language=payload.lang,
         normalized_drugs=normalized_drugs,
         overall_severity=overall,
+        overall_severity_score=severity_engine.score_for(overall),
         interactions=interactions,
         overlapping_side_effects=side_effects,
+        monitoring_notes=monitoring_notes,
         warnings=warnings,
-        explanations=ExplanationBlock(simple=simple, clinical=clinical),
+        patient_explanation=patient_explanation,
+        clinical_explanation=clinical_explanation,
         recommendations=_recommendations(overall, payload.lang),
     )
 
-    # Log to MongoDB (fail silently if connection issues)
-    try:
-        await db.logs.insert_one(
-            {
-                "request_id": response.request_id,
-                "drugs_checked": payload.drugs,
-                "lang": payload.lang.value,
-                "timestamp": response.timestamp,
-                "result": response.model_dump(),
-            }
-        )
-    except Exception as e:
-        print(f"Warning: Could not log to MongoDB: {e}")
+    # Logging is intentionally disabled in the request path until Mongo auth is fixed.
+    # This avoids request latency spikes from repeated authentication failures.
 
     return response
 
@@ -118,11 +127,10 @@ async def analyze_combination(
 @router.get("/drug-info/{drug_name}", response_model=DrugInfoResponse)
 async def get_drug_info(drug_name: str) -> DrugInfoResponse:
     record = await drug_lookup.get_drug_info(drug_name)
-    source = "local-catalog" if record.name in drug_lookup.catalog else "openfda"
     return DrugInfoResponse(
         name=record.name,
         rxnorm_id=record.rxnorm_id,
         side_effects=record.side_effects,
         contraindications=record.contraindications,
-        source=source,
+        source=record.source,
     )

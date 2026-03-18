@@ -25,7 +25,7 @@ export function DrugInputBox({ onSubmit, isLoading }: DrugInputBoxProps) {
   const [conditionText, setConditionText] = useState("");
 
   const drugs = useMemo(() => toList(drugText), [drugText]);
-  const isValid = drugs.length >= 2 && drugs.length <= 5;
+  const isValid = drugs.length >= 2;
 
   return (
     <section className="panel">

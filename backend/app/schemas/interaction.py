@@ -16,7 +16,7 @@ class SeverityLevel(str, Enum):
 
 
 class CheckInteractionsRequest(BaseModel):
-    drugs: list[str] = Field(min_length=2, max_length=5)
+    drugs: list[str] = Field(min_length=2)
     allergies: list[str] = Field(default_factory=list)
     conditions: list[str] = Field(default_factory=list)
     lang: SupportedLanguage = SupportedLanguage.en
@@ -39,17 +39,21 @@ class DrugMatch(BaseModel):
 
 
 class InteractionFinding(BaseModel):
+    id: str
     drug_a: str
     drug_b: str
     severity: SeverityLevel
+    severity_score: float = Field(ge=0.0, le=1.0)
     mechanism: str
     description: str
     source: str
 
 
 class SideEffectAggregate(BaseModel):
-    effect: str
+    id: str
+    side_effect: str
     drugs: list[str]
+    severity_score: float = Field(ge=0.0, le=1.0)
     frequency_hint: str | None = None
 
 
@@ -59,21 +63,19 @@ class WarningItem(BaseModel):
     severity: SeverityLevel
 
 
-class ExplanationBlock(BaseModel):
-    simple: str
-    clinical: str
-
-
 class CheckInteractionsResponse(BaseModel):
     request_id: str
     timestamp: datetime
     language: SupportedLanguage
     normalized_drugs: list[DrugMatch]
     overall_severity: SeverityLevel
+    overall_severity_score: float = Field(ge=0.0, le=1.0)
     interactions: list[InteractionFinding]
     overlapping_side_effects: list[SideEffectAggregate]
+    monitoring_notes: list[str]
     warnings: list[WarningItem]
-    explanations: ExplanationBlock
+    patient_explanation: str
+    clinical_explanation: str
     recommendations: list[str]
 
 

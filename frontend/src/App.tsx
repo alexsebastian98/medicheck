@@ -16,7 +16,12 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <div className="app-shell">
         <header className="top-bar">
           <LanguageSwitcher lang={lang} onChange={handleLangChange} />
