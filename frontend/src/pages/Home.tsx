@@ -34,8 +34,10 @@ export function Home({ lang }: HomeProps) {
           data: response,
         },
       });
-    } catch {
-      setError("API request failed. Verify backend service and try again.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error("API Error:", message, err);
+      setError(`API request failed: ${message}`);
     } finally {
       setLoading(false);
     }

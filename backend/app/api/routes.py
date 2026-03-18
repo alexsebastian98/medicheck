@@ -90,15 +90,19 @@ async def check_interactions(
         recommendations=_recommendations(overall, payload.lang),
     )
 
-    await db.logs.insert_one(
-        {
-            "request_id": response.request_id,
-            "drugs_checked": payload.drugs,
-            "lang": payload.lang.value,
-            "timestamp": response.timestamp,
-            "result": response.model_dump(),
-        }
-    )
+    # Log to MongoDB (fail silently if connection issues)
+    try:
+        await db.logs.insert_one(
+            {
+                "request_id": response.request_id,
+                "drugs_checked": payload.drugs,
+                "lang": payload.lang.value,
+                "timestamp": response.timestamp,
+                "result": response.model_dump(),
+            }
+        )
+    except Exception as e:
+        print(f"Warning: Could not log to MongoDB: {e}")
 
     return response
 
