@@ -1,0 +1,37 @@
+[
+  {
+    "name": "aspirin",
+    "rxnorm_id": "1191",
+    "side_effects": ["nausea", "stomach irritation", "bleeding"],
+    "contraindications": ["active ulcer", "bleeding disorder"],
+    "classes": ["nsaid", "antiplatelet"]
+  },
+  {
+    "name": "warfarin",
+    "rxnorm_id": "11289",
+    "side_effects": ["bleeding", "bruising", "fatigue"],
+    "contraindications": ["pregnancy", "active bleeding"],
+    "classes": ["anticoagulant"]
+  },
+  {
+    "name": "ibuprofen",
+    "rxnorm_id": "5640",
+    "side_effects": ["nausea", "stomach irritation", "kidney stress"],
+    "contraindications": ["severe kidney disease", "active ulcer"],
+    "classes": ["nsaid"]
+  },
+  {
+    "name": "metformin",
+    "rxnorm_id": "6809",
+    "side_effects": ["nausea", "diarrhea", "abdominal pain"],
+    "contraindications": ["severe kidney disease", "metabolic acidosis"],
+    "classes": ["antidiabetic"]
+  },
+  {
+    "name": "lisinopril",
+    "rxnorm_id": "29046",
+    "side_effects": ["dry cough", "dizziness", "hyperkalemia"],
+    "contraindications": ["pregnancy", "history of angioedema"],
+    "classes": ["ace inhibitor"]
+  }
+]

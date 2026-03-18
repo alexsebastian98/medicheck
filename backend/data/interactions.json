@@ -1,0 +1,34 @@
+[
+  {
+    "drug_a": "aspirin",
+    "drug_b": "warfarin",
+    "severity": "HIGH",
+    "description": "Combined anticoagulant and antiplatelet effects increase bleeding risk.",
+    "mechanism": "Additive antithrombotic activity",
+    "source": "curated-reference"
+  },
+  {
+    "drug_a": "ibuprofen",
+    "drug_b": "warfarin",
+    "severity": "HIGH",
+    "description": "NSAID-related gastric injury plus anticoagulation raises hemorrhage risk.",
+    "mechanism": "Mucosal injury with anticoagulation",
+    "source": "curated-reference"
+  },
+  {
+    "drug_a": "aspirin",
+    "drug_b": "ibuprofen",
+    "severity": "MODERATE",
+    "description": "Concurrent NSAID use increases GI adverse effects and bleeding tendency.",
+    "mechanism": "Pharmacodynamic overlap",
+    "source": "curated-reference"
+  },
+  {
+    "drug_a": "metformin",
+    "drug_b": "lisinopril",
+    "severity": "LOW",
+    "description": "Blood pressure and glucose changes may require routine monitoring.",
+    "mechanism": "Monitoring-related interaction",
+    "source": "curated-reference"
+  }
+]
