@@ -46,12 +46,12 @@ export function Home({ lang }: HomeProps) {
   return (
     <main className="layout">
       <section className="hero">
-        <h1>{t("appTitle")}</h1>
-        <p>{t("subtitle")}</p>
+        <h1 className="hero-title">{t("appTitle")}</h1>
+        <p className="hero-subtitle">{t("subtitle")}</p>
       </section>
       <DrugInputBox onSubmit={handleSubmit} isLoading={loading} />
       {error && <p className="error">{error}</p>}
-      <footer>{t("footer")}</footer>
+      <footer className="app-footer">{t("footer")}</footer>
     </main>
   );
 }

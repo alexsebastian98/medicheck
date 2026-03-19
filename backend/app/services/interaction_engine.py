@@ -38,6 +38,49 @@ _CLASS_RULES = [
     },
 ]
 
+_HIGH_RISK_OVERRIDE_RULES = [
+    {
+        "name": "methotrexate_nsaid",
+        "classes": ("methotrexate", "nsaid"),
+        "severity": SeverityLevel.high,
+        "mechanism": "Reduced methotrexate clearance with NSAID coadministration",
+        "description": "NSAIDs can reduce methotrexate elimination, increasing marrow suppression and systemic toxicity risk.",
+        "risk_type": "toxicity",
+    },
+    {
+        "name": "digoxin_diuretic",
+        "classes": ("digoxin", "diuretic"),
+        "severity": SeverityLevel.high,
+        "mechanism": "Electrolyte-mediated digoxin sensitization",
+        "description": "Diuretic-related potassium shifts can amplify digoxin effect and trigger toxicity or arrhythmia.",
+        "risk_type": "electrolyte",
+    },
+    {
+        "name": "nsaid_steroid",
+        "classes": ("nsaid", "corticosteroid"),
+        "severity": SeverityLevel.moderate,
+        "mechanism": "Additive gastric mucosal injury",
+        "description": "NSAIDs and corticosteroids both increase gastric irritation, raising risk of ulcers and bleeding.",
+        "risk_type": "bleeding",
+    },
+    {
+        "name": "ssri_nsaid",
+        "classes": ("ssri", "nsaid"),
+        "severity": SeverityLevel.moderate,
+        "mechanism": "Platelet signaling plus mucosal injury overlap",
+        "description": "SSRIs reduce platelet serotonin signaling and NSAIDs irritate gastric mucosa, increasing bleeding risk.",
+        "risk_type": "bleeding",
+    },
+    {
+        "name": "warfarin_antibiotic",
+        "classes": ("warfarin", "antibiotic"),
+        "severity": SeverityLevel.moderate,
+        "mechanism": "Antibiotic-potentiated anticoagulant effect",
+        "description": "Some antibiotics can increase warfarin effect and bleeding risk, requiring closer anticoagulation monitoring.",
+        "risk_type": "bleeding",
+    },
+]
+
 _CLASS_SYNONYMS = {
     "nsaid": ["nsaid", "nonsteroidal anti-inflammatory", "cox inhibitor"],
     "corticosteroid": ["corticosteroid", "glucocorticoid", "steroid"],
@@ -45,6 +88,9 @@ _CLASS_SYNONYMS = {
     "diuretic": ["diuretic", "loop diuretic", "thiazide", "potassium-sparing diuretic"],
     "digoxin": ["digoxin", "cardiac glycoside"],
     "ppi": ["ppi", "proton pump inhibitor"],
+    "methotrexate": ["methotrexate", "antimetabolite"],
+    "warfarin": ["warfarin", "coumarin anticoagulant"],
+    "antibiotic": ["antibiotic", "fluoroquinolone", "macrolide"],
 }
 
 _PPI_DRUGS = {"omeprazole", "pantoprazole", "esomeprazole", "lansoprazole", "rabeprazole"}
@@ -57,6 +103,38 @@ _PRIMARY_RISK_TERMS = {
     "toxicity": 3,
     "toxic": 3,
     "ulcer": 2,
+}
+
+_CYP3A4_EFFECTORS = {
+    "tacrolimus": "substrate-competition",
+    "amiodarone": "inhibitor",
+    "amlodipine": "inhibitor",
+}
+
+_CYP3A4_SUBSTRATES = {
+    "tacrolimus",
+    "simvastatin",
+    "amiodarone",
+    "amlodipine",
+}
+
+_HIGH_RISK_CYP3A4_SUBSTRATES = {"tacrolimus", "simvastatin"}
+
+_PRIORITY_SIDE_EFFECT_TERMS = {
+    "bleeding",
+    "arrhythmia",
+    "myopathy",
+    "toxicity",
+    "electrolyte imbalance",
+    "kidney stress",
+}
+
+_RISK_TYPE_KEYWORDS = {
+    "bleeding": ["bleed", "hemorrhage", "ulcer", "inr"],
+    "cardiac": ["arrhythmia", "ecg", "qt", "cardiac"],
+    "toxicity": ["toxicity", "toxic", "myopathy", "marrow suppression"],
+    "electrolyte": ["electrolyte", "potassium", "hypokalemia"],
+    "metabolic": ["cyp", "metabolism", "clearance", "exposure"],
 }
 
 
@@ -93,13 +171,115 @@ class InteractionEngine:
             if class_rule is not None:
                 candidates.append(class_rule)
 
+            override_rule = self._extract_high_risk_override(a, b)
+            if override_rule is not None:
+                candidates.append(override_rule)
+
+            secondary_metabolic = self._extract_secondary_metabolic_interaction(a, b)
+            if secondary_metabolic is not None:
+                candidates.append(secondary_metabolic)
+
             if not candidates:
                 continue
 
-            finding = max(candidates, key=lambda item: self._severity_rank(item.severity))
+            finding = max(candidates, key=self._interaction_priority)
+            if not finding.risk_type:
+                finding.risk_type = self.infer_risk_type(finding)
             finding.id = f"int_{len(findings) + 1:03d}"
             findings.append(finding)
         return findings
+
+    def _extract_high_risk_override(
+        self,
+        drug_a: DrugRecord,
+        drug_b: DrugRecord,
+    ) -> InteractionFinding | None:
+        tags_a = self._normalize_drug_classes(drug_a)
+        tags_b = self._normalize_drug_classes(drug_b)
+        pair_tags = tags_a | tags_b
+
+        candidates: list[dict] = []
+        for rule in _HIGH_RISK_OVERRIDE_RULES:
+            required = set(rule["classes"])
+            if required.issubset(pair_tags) and not (required.issubset(tags_a) or required.issubset(tags_b)):
+                candidates.append(rule)
+
+        if not candidates:
+            return None
+
+        best = max(candidates, key=lambda item: self._severity_rank(item["severity"]))
+        return InteractionFinding(
+            id="",
+            drug_a=drug_a.name,
+            drug_b=drug_b.name,
+            severity=best["severity"],
+            severity_score=0.0,
+            risk_type=best["risk_type"],
+            mechanism=best["mechanism"],
+            description=best["description"],
+            source="high-risk-override",
+        )
+
+    def _extract_secondary_metabolic_interaction(
+        self,
+        drug_a: DrugRecord,
+        drug_b: DrugRecord,
+    ) -> InteractionFinding | None:
+        a = drug_a.name.lower()
+        b = drug_b.name.lower()
+
+        a_is_effector = a in _CYP3A4_EFFECTORS
+        b_is_effector = b in _CYP3A4_EFFECTORS
+        a_is_substrate = a in _CYP3A4_SUBSTRATES
+        b_is_substrate = b in _CYP3A4_SUBSTRATES
+
+        if not ((a_is_effector and b_is_substrate) or (b_is_effector and a_is_substrate)):
+            if not (a_is_substrate and b_is_substrate and ({a, b} & _HIGH_RISK_CYP3A4_SUBSTRATES)):
+                return None
+
+        if a_is_substrate and b_is_substrate and not (a_is_effector or b_is_effector):
+            return InteractionFinding(
+                id="",
+                drug_a=drug_a.name,
+                drug_b=drug_b.name,
+                severity=SeverityLevel.moderate,
+                severity_score=0.0,
+                risk_type="metabolic",
+                mechanism="Shared CYP3A4 substrate competition",
+                description=(
+                    f"{drug_a.name} and {drug_b.name} both rely on CYP3A4 metabolism; "
+                    "shared pathway competition may increase exposure and toxicity risk."
+                ),
+                source="secondary-metabolic-rule",
+            )
+
+        if not ((a_is_effector and b_is_substrate) or (b_is_effector and a_is_substrate)):
+            return None
+
+        effector = drug_a.name if a_is_effector else drug_b.name
+        substrate = drug_b.name if a_is_effector else drug_a.name
+        return InteractionFinding(
+            id="",
+            drug_a=drug_a.name,
+            drug_b=drug_b.name,
+            severity=SeverityLevel.moderate,
+            severity_score=0.0,
+            risk_type="metabolic",
+            mechanism="Shared CYP3A4 pathway",
+            description=(
+                f"{effector} can alter CYP3A4 activity while {substrate} depends on CYP3A4 metabolism, "
+                "which may increase exposure and adverse effect risk."
+            ),
+            source="secondary-metabolic-rule",
+        )
+
+    def _interaction_priority(self, finding: InteractionFinding) -> tuple[int, int, float]:
+        source_priority = {
+            "high-risk-override": 3,
+            "secondary-metabolic-rule": 2,
+            "class-rule": 1,
+        }.get(finding.source, 0)
+        return (self._severity_rank(finding.severity), source_priority, finding.severity_score)
 
     def _extract_class_rule_interaction(
         self,
@@ -128,6 +308,7 @@ class InteractionEngine:
             drug_b=drug_b.name,
             severity=best["severity"],
             severity_score=0.0,
+            risk_type="bleeding" if "bleed" in best["description"].lower() else "metabolic",
             mechanism=best["mechanism"],
             description=best["description"],
             source="class-rule",
@@ -290,6 +471,7 @@ class InteractionEngine:
             drug_b=drug_b.name,
             severity=SeverityLevel(record.severity),
             severity_score=0.0,
+            risk_type="",
             mechanism=record.mechanism,
             description=record.description,
             source=record.source,
@@ -314,6 +496,7 @@ class InteractionEngine:
             drug_b=drug_b.name,
             severity=severity,
             severity_score=0.0,
+            risk_type="",
             mechanism="OpenFDA label-derived interaction",
             description=description,
             source="openfda-label",
@@ -362,6 +545,12 @@ class InteractionEngine:
             if len(drug_set) < 2:
                 continue
 
+            clinically_relevant = (
+                any(term in effect for term in _PRIORITY_SIDE_EFFECT_TERMS) or len(drug_set) >= 3
+            )
+            if not clinically_relevant:
+                continue
+
             overlap.append(
                 SideEffectAggregate(
                     id=f"se_{index:03d}",
@@ -381,38 +570,35 @@ class InteractionEngine:
         lang: SupportedLanguage,
     ) -> list[str]:
         notes: list[str] = []
-        drug_names = {drug.name.lower() for drug in drugs}
         side_effect_names = {item.side_effect.lower() for item in overlapping_side_effects}
-        interaction_text = " ".join(
-            [f"{item.description} {item.mechanism}".lower() for item in interactions]
-        )
+        risk_types = self.collect_risk_types(interactions)
 
-        if "bleeding" in interaction_text or "bleeding" in side_effect_names:
+        if "bleeding" in risk_types or "bleeding" in side_effect_names:
             notes.append(
-                "Monitor for bruising, GI bleeding, hemoglobin, and hematocrit."
+                "Monitor INR, hemoglobin, hematocrit, and signs of GI or mucosal bleeding."
                 if lang == SupportedLanguage.en
-                else "Kontrollieren Sie Blutungszeichen, Hb, Hamatokrit und gastrointestinale Blutungen."
+                else "Kontrollieren Sie INR, Hb, Hamatokrit und Zeichen gastrointestinaler oder mukosaler Blutungen."
             )
 
-        if {"lisinopril", "metformin"} & drug_names or "kidney stress" in side_effect_names:
+        if "cardiac" in risk_types:
             notes.append(
-                "Monitor serum creatinine, potassium, renal function, and blood pressure."
+                "Monitor ECG rhythm and heart rate when clinically appropriate."
                 if lang == SupportedLanguage.en
-                else "Kontrollieren Sie Serumkreatinin, Kalium, Nierenfunktion und Blutdruck."
+                else "Uberwachen Sie bei klinischer Notwendigkeit EKG-Rhythmus und Herzfrequenz."
             )
 
-        if "metformin" in drug_names:
+        if "toxicity" in risk_types:
             notes.append(
-                "Monitor glucose control and renal function during therapy changes."
+                "Check drug-specific toxicity markers and consider trough/serum levels when available."
                 if lang == SupportedLanguage.en
-                else "Uberwachen Sie Blutzuckerkontrolle und Nierenfunktion bei Therapieanderungen."
+                else "Kontrollieren Sie substanzspezifische Toxizitatsmarker und ggf. Talspiegel/Serumspiegel."
             )
 
-        if "dizziness" in side_effect_names or "nausea" in side_effect_names:
+        if "electrolyte" in risk_types or "electrolyte imbalance" in side_effect_names:
             notes.append(
-                "Monitor hydration status, orthostatic symptoms, and overall tolerance."
+                "Monitor potassium and renal function; correct electrolyte shifts promptly."
                 if lang == SupportedLanguage.en
-                else "Uberwachen Sie Hydratation, orthostatische Beschwerden und die allgemeine Vertrlichkeit."
+                else "Kontrollieren Sie Kalium und Nierenfunktion; korrigieren Sie Elektrolytverschiebungen zeitnah."
             )
 
         if not notes:
@@ -423,6 +609,21 @@ class InteractionEngine:
             )
 
         return notes
+
+    def infer_risk_type(self, interaction: InteractionFinding) -> str:
+        text = f"{interaction.description} {interaction.mechanism}".lower()
+        for risk_type, terms in _RISK_TYPE_KEYWORDS.items():
+            if any(term in text for term in terms):
+                return risk_type
+        return "metabolic"
+
+    def collect_risk_types(self, interactions: list[InteractionFinding]) -> list[str]:
+        ordered: list[str] = []
+        for interaction in interactions:
+            risk_type = interaction.risk_type or self.infer_risk_type(interaction)
+            if risk_type not in ordered:
+                ordered.append(risk_type)
+        return ordered
 
     def detect_duplicate_class_usage(
         self,

@@ -21,6 +21,7 @@ export interface InteractionFinding {
   drug_b: string;
   severity: SeverityLevel;
   severity_score: number;
+  risk_type?: string;
   mechanism: string;
   description: string;
   source: string;
@@ -57,8 +58,10 @@ export interface CheckInteractionsResponse {
   overall_severity_score: number;
   interactions: InteractionFinding[];
   primary_interaction?: InteractionFinding | null;
+  secondary_interactions?: InteractionFinding[];
   modifiers?: ModifierItem[];
   risk_summary?: string;
+  risk_types?: string[];
   overlapping_side_effects: SideEffectAggregate[];
   monitoring_notes: string[];
   warnings: WarningItem[];

@@ -7,7 +7,7 @@ import { Results } from "./pages/Results";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 
 function App() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [lang, setLang] = useState<SupportedLanguage>("en");
 
   function handleLangChange(nextLang: SupportedLanguage) {
@@ -24,6 +24,7 @@ function App() {
     >
       <div className="app-shell">
         <header className="top-bar">
+          <div className="app-brand">{t("appTitle")}</div>
           <LanguageSwitcher lang={lang} onChange={handleLangChange} />
         </header>
         <Routes>

@@ -26,9 +26,11 @@ export function Results() {
 
   return (
     <main className="layout">
-      <button className="back-link" type="button" onClick={() => navigate("/")}>
-        {t("back")}
-      </button>
+      <div className="results-top-row">
+        <button className="back-link" type="button" onClick={() => navigate("/")}>
+          {t("back")}
+        </button>
+      </div>
       <InteractionResult data={state.data} />
     </main>
   );

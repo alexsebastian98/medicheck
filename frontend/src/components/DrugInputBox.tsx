@@ -29,9 +29,10 @@ export function DrugInputBox({ onSubmit, isLoading }: DrugInputBoxProps) {
 
   return (
     <section className="panel">
-      <h2>{t("enterDrugs")}</h2>
+      <h2 className="section-title">{t("enterDrugs")}</h2>
       <label>
         <textarea
+          className="form-control input-drugs"
           value={drugText}
           onChange={(event) => setDrugText(event.target.value)}
           placeholder={t("drugsPlaceholder")}
@@ -41,6 +42,7 @@ export function DrugInputBox({ onSubmit, isLoading }: DrugInputBoxProps) {
 
       <label>
         <input
+          className="form-control"
           type="text"
           value={allergyText}
           onChange={(event) => setAllergyText(event.target.value)}
@@ -50,6 +52,7 @@ export function DrugInputBox({ onSubmit, isLoading }: DrugInputBoxProps) {
 
       <label>
         <input
+          className="form-control"
           type="text"
           value={conditionText}
           onChange={(event) => setConditionText(event.target.value)}
@@ -68,7 +71,7 @@ export function DrugInputBox({ onSubmit, isLoading }: DrugInputBoxProps) {
       {!isValid && <p className="hint">{t("requiredHint")}</p>}
 
       <button
-        className="action"
+        className="action action-primary"
         type="button"
         disabled={!isValid || isLoading}
         onClick={() =>

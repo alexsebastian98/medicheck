@@ -14,7 +14,7 @@ export function WarningPanel({ warnings }: WarningPanelProps) {
 
   return (
     <section className="panel">
-      <h3>{t("warnings")}</h3>
+      <h3 className="section-title">{t("warnings")}</h3>
       <ul className="list">
         {warnings.map((warning, index) => (
           <li key={`${warning.type}-${index}`} className="warning-item">

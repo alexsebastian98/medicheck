@@ -44,6 +44,7 @@ class InteractionFinding(BaseModel):
     drug_b: str
     severity: SeverityLevel
     severity_score: float = Field(ge=0.0, le=1.0)
+    risk_type: str = "metabolic"
     mechanism: str
     description: str
     source: str
@@ -79,8 +80,10 @@ class CheckInteractionsResponse(BaseModel):
     overall_severity_score: float = Field(ge=0.0, le=1.0)
     interactions: list[InteractionFinding]
     primary_interaction: InteractionFinding | None = None
+    secondary_interactions: list[InteractionFinding] = Field(default_factory=list)
     modifiers: list[ModifierItem] = Field(default_factory=list)
     risk_summary: str = ""
+    risk_types: list[str] = Field(default_factory=list)
     overlapping_side_effects: list[SideEffectAggregate]
     monitoring_notes: list[str]
     warnings: list[WarningItem]

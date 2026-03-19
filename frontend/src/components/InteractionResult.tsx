@@ -17,23 +17,29 @@ export function InteractionResult({ data }: InteractionResultProps) {
       </section>
 
       <section className="panel">
-        <h3>{t("interactions")}</h3>
+        <h3 className="section-title">{t("interactions")}</h3>
         {data.primary_interaction ? (
-          <p>
+          <p className="primary-highlight">
             <strong>{t("primaryInteraction")}:</strong> {data.primary_interaction.drug_a} +{" "}
             {data.primary_interaction.drug_b} ({data.primary_interaction.severity})
           </p>
         ) : null}
-        {data.risk_summary ? <p>{data.risk_summary}</p> : null}
+        {data.risk_summary ? <p className="risk-summary">{data.risk_summary}</p> : null}
+        {data.risk_types && data.risk_types.length > 0 ? (
+          <p className="risk-summary">
+            <strong>{t("riskTypes")}:</strong> {data.risk_types.join(", ")}
+          </p>
+        ) : null}
         {data.interactions.length === 0 ? (
           <p>{t("noInteractions")}</p>
         ) : (
           <ul className="list">
             {data.interactions.map((item) => (
-              <li key={item.id}>
+              <li key={item.id} className="list-card">
                 <strong>
                   {item.drug_a} + {item.drug_b} ({item.severity})
                 </strong>
+                {item.risk_type ? <p>Risk type: {item.risk_type}</p> : null}
                 <p>ID: {item.id} | Score: {item.severity_score.toFixed(2)}</p>
                 <p>{item.description}</p>
                 <small>{item.mechanism}</small>
@@ -43,10 +49,10 @@ export function InteractionResult({ data }: InteractionResultProps) {
         )}
         {data.modifiers && data.modifiers.length > 0 ? (
           <>
-            <h4>{t("modifiers")}</h4>
+            <h4 className="subsection-title">{t("modifiers")}</h4>
             <ul className="list">
               {data.modifiers.map((modifier, index) => (
-                <li key={`${modifier.drug}-${index}`}>
+                <li key={`${modifier.drug}-${index}`} className="list-card modifier-item">
                   <strong>{modifier.drug}</strong>: {modifier.effect}
                 </li>
               ))}
@@ -56,10 +62,10 @@ export function InteractionResult({ data }: InteractionResultProps) {
       </section>
 
       <section className="panel">
-        <h3>{t("sideEffects")}</h3>
+        <h3 className="section-title">{t("sideEffects")}</h3>
         <ul className="list">
           {data.overlapping_side_effects.map((effect) => (
-            <li key={effect.id}>
+            <li key={effect.id} className="list-card">
               <strong>{effect.side_effect}</strong>: {effect.drugs.join(", ")}
               <div>ID: {effect.id} | Score: {effect.severity_score.toFixed(2)}</div>
             </li>
@@ -70,26 +76,30 @@ export function InteractionResult({ data }: InteractionResultProps) {
       <WarningPanel warnings={data.warnings} />
 
       <section className="panel">
-        <h3>{t("monitoringNotes")}</h3>
+        <h3 className="section-title">{t("monitoringNotes")}</h3>
         <ul className="list">
           {data.monitoring_notes.map((note, index) => (
-            <li key={`${note}-${index}`}>{note}</li>
+            <li key={`${note}-${index}`} className="list-card">
+              {note}
+            </li>
           ))}
         </ul>
       </section>
 
       <section className="panel">
-        <h3>{t("simpleExplanation")}</h3>
-        <p>{data.patient_explanation}</p>
-        <h3>{t("clinicalExplanation")}</h3>
-        <p>{data.clinical_explanation}</p>
+        <h3 className="section-title">{t("simpleExplanation")}</h3>
+        <p className="explanation-text">{data.patient_explanation}</p>
+        <h3 className="section-title section-title-tight">{t("clinicalExplanation")}</h3>
+        <p className="explanation-text">{data.clinical_explanation}</p>
       </section>
 
       <section className="panel">
-        <h3>{t("recommendations")}</h3>
+        <h3 className="section-title">{t("recommendations")}</h3>
         <ul className="list">
           {data.recommendations.map((recommendation, index) => (
-            <li key={index}>{recommendation}</li>
+            <li key={index} className="list-card">
+              {recommendation}
+            </li>
           ))}
         </ul>
       </section>

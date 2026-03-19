@@ -82,5 +82,47 @@
     "side_effects": ["nausea", "insomnia", "bleeding"],
     "contraindications": ["concurrent MAOI use"],
     "classes": ["ssri"]
+  },
+  {
+    "name": "tacrolimus",
+    "rxnorm_id": "11190",
+    "side_effects": ["toxicity", "kidney stress", "tremor"],
+    "contraindications": [],
+    "classes": ["immunosuppressant", "cyp3a4 substrate"]
+  },
+  {
+    "name": "simvastatin",
+    "rxnorm_id": "36567",
+    "side_effects": ["myopathy", "liver enzyme elevation"],
+    "contraindications": ["active liver disease"],
+    "classes": ["statin", "cyp3a4 substrate"]
+  },
+  {
+    "name": "amlodipine",
+    "rxnorm_id": "17767",
+    "side_effects": ["edema", "dizziness"],
+    "contraindications": [],
+    "classes": ["calcium channel blocker", "cyp3a4 inhibitor", "cyp3a4 substrate"]
+  },
+  {
+    "name": "amiodarone",
+    "rxnorm_id": "703",
+    "side_effects": ["arrhythmia", "thyroid dysfunction"],
+    "contraindications": ["severe sinus-node dysfunction"],
+    "classes": ["antiarrhythmic", "cyp3a4 inhibitor", "cyp3a4 substrate"]
+  },
+  {
+    "name": "methotrexate",
+    "rxnorm_id": "6851",
+    "side_effects": ["toxicity", "myelosuppression", "mucositis"],
+    "contraindications": ["pregnancy", "severe hepatic disease"],
+    "classes": ["antimetabolite", "methotrexate"]
+  },
+  {
+    "name": "ciprofloxacin",
+    "rxnorm_id": "2551",
+    "side_effects": ["diarrhea", "qt prolongation"],
+    "contraindications": [],
+    "classes": ["antibiotic", "fluoroquinolone"]
   }
 ]

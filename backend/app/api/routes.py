@@ -68,8 +68,14 @@ async def check_interactions(
     interactions = await interaction_engine.detect_pairwise_interactions(drug_records, None)
     for interaction in interactions:
         interaction.severity_score = severity_engine.score_for(interaction.severity)
+        if not interaction.risk_type:
+            interaction.risk_type = interaction_engine.infer_risk_type(interaction)
 
     primary_interaction = interaction_engine.select_primary_interaction(interactions)
+    secondary_interactions = [
+        item for item in interactions if primary_interaction is None or item.id != primary_interaction.id
+    ]
+    risk_types = interaction_engine.collect_risk_types(interactions)
     modifiers = interaction_engine.detect_modifiers(drug_records, interactions)
 
     side_effects = interaction_engine.aggregate_side_effects(drug_records)
@@ -112,8 +118,10 @@ async def check_interactions(
         overall_severity_score=severity_engine.score_for(overall),
         interactions=interactions,
         primary_interaction=primary_interaction,
+        secondary_interactions=secondary_interactions,
         modifiers=modifiers,
         risk_summary=risk_summary,
+        risk_types=risk_types,
         overlapping_side_effects=side_effects,
         monitoring_notes=monitoring_notes,
         warnings=warnings,
