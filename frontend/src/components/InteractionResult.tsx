@@ -18,6 +18,13 @@ export function InteractionResult({ data }: InteractionResultProps) {
 
       <section className="panel">
         <h3>{t("interactions")}</h3>
+        {data.primary_interaction ? (
+          <p>
+            <strong>{t("primaryInteraction")}:</strong> {data.primary_interaction.drug_a} +{" "}
+            {data.primary_interaction.drug_b} ({data.primary_interaction.severity})
+          </p>
+        ) : null}
+        {data.risk_summary ? <p>{data.risk_summary}</p> : null}
         {data.interactions.length === 0 ? (
           <p>{t("noInteractions")}</p>
         ) : (
@@ -34,6 +41,18 @@ export function InteractionResult({ data }: InteractionResultProps) {
             ))}
           </ul>
         )}
+        {data.modifiers && data.modifiers.length > 0 ? (
+          <>
+            <h4>{t("modifiers")}</h4>
+            <ul className="list">
+              {data.modifiers.map((modifier, index) => (
+                <li key={`${modifier.drug}-${index}`}>
+                  <strong>{modifier.drug}</strong>: {modifier.effect}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </section>
 
       <section className="panel">

@@ -33,5 +33,54 @@
     "side_effects": ["dry cough", "dizziness", "hyperkalemia"],
     "contraindications": ["pregnancy", "history of angioedema"],
     "classes": ["ace inhibitor"]
+  },
+  {
+    "name": "naproxen",
+    "rxnorm_id": "7258",
+    "side_effects": ["nausea", "stomach irritation", "bleeding"],
+    "contraindications": ["active ulcer", "severe kidney disease"],
+    "classes": ["nsaid"]
+  },
+  {
+    "name": "prednisone",
+    "rxnorm_id": "8640",
+    "side_effects": ["hyperglycemia", "stomach irritation", "fluid retention"],
+    "contraindications": ["systemic fungal infection"],
+    "classes": ["corticosteroid"]
+  },
+  {
+    "name": "omeprazole",
+    "rxnorm_id": "7646",
+    "side_effects": ["headache", "abdominal pain"],
+    "contraindications": [],
+    "classes": ["proton pump inhibitor", "ppi"]
+  },
+  {
+    "name": "pantoprazole",
+    "rxnorm_id": "40790",
+    "side_effects": ["headache", "diarrhea"],
+    "contraindications": [],
+    "classes": ["proton pump inhibitor", "ppi"]
+  },
+  {
+    "name": "digoxin",
+    "rxnorm_id": "3407",
+    "side_effects": ["nausea", "dizziness", "arrhythmia"],
+    "contraindications": ["ventricular fibrillation"],
+    "classes": ["cardiac glycoside", "digoxin"]
+  },
+  {
+    "name": "furosemide",
+    "rxnorm_id": "4603",
+    "side_effects": ["dizziness", "dehydration", "electrolyte imbalance"],
+    "contraindications": ["anuria"],
+    "classes": ["diuretic", "loop diuretic"]
+  },
+  {
+    "name": "sertraline",
+    "rxnorm_id": "36437",
+    "side_effects": ["nausea", "insomnia", "bleeding"],
+    "contraindications": ["concurrent MAOI use"],
+    "classes": ["ssri"]
   }
 ]

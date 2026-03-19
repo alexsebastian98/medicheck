@@ -10,11 +10,54 @@ from app.models.drug_model import DrugRecord
 from app.models.interaction_model import InteractionRecord
 from app.schemas.interaction import (
     InteractionFinding,
+    ModifierItem,
     SeverityLevel,
     SideEffectAggregate,
     SupportedLanguage,
     WarningItem,
 )
+
+_CLASS_RULES = [
+    {
+        "classes": ("nsaid", "corticosteroid"),
+        "severity": SeverityLevel.moderate,
+        "mechanism": "Combined gastric mucosal injury",
+        "description": "NSAIDs and corticosteroids both increase gastric irritation, raising risk of ulcers and bleeding.",
+    },
+    {
+        "classes": ("nsaid", "ssri"),
+        "severity": SeverityLevel.moderate,
+        "mechanism": "Platelet and mucosal bleeding pathway overlap",
+        "description": "NSAIDs can injure gastric mucosa while SSRIs reduce platelet serotonin signaling, increasing bleeding risk.",
+    },
+    {
+        "classes": ("diuretic", "digoxin"),
+        "severity": SeverityLevel.high,
+        "mechanism": "Electrolyte-mediated digoxin toxicity",
+        "description": "Diuretic-related potassium shifts can increase digoxin effect and trigger toxicity, including arrhythmia risk.",
+    },
+]
+
+_CLASS_SYNONYMS = {
+    "nsaid": ["nsaid", "nonsteroidal anti-inflammatory", "cox inhibitor"],
+    "corticosteroid": ["corticosteroid", "glucocorticoid", "steroid"],
+    "ssri": ["ssri", "selective serotonin reuptake inhibitor"],
+    "diuretic": ["diuretic", "loop diuretic", "thiazide", "potassium-sparing diuretic"],
+    "digoxin": ["digoxin", "cardiac glycoside"],
+    "ppi": ["ppi", "proton pump inhibitor"],
+}
+
+_PPI_DRUGS = {"omeprazole", "pantoprazole", "esomeprazole", "lansoprazole", "rabeprazole"}
+
+_PRIMARY_RISK_TERMS = {
+    "bleed": 3,
+    "bleeding": 3,
+    "hemorrhage": 3,
+    "arrhythmia": 3,
+    "toxicity": 3,
+    "toxic": 3,
+    "ulcer": 2,
+}
 
 
 class InteractionEngine:
@@ -41,13 +84,151 @@ class InteractionEngine:
         findings: list[InteractionFinding] = []
 
         for a, b in combinations(drugs, 2):
-            finding = await self._get_live_or_cached_interaction(a, b, db)
-            if finding is None:
+            candidates: list[InteractionFinding] = []
+            seed_or_label = await self._get_live_or_cached_interaction(a, b, db)
+            if seed_or_label is not None:
+                candidates.append(seed_or_label)
+
+            class_rule = self._extract_class_rule_interaction(a, b)
+            if class_rule is not None:
+                candidates.append(class_rule)
+
+            if not candidates:
                 continue
 
+            finding = max(candidates, key=lambda item: self._severity_rank(item.severity))
             finding.id = f"int_{len(findings) + 1:03d}"
             findings.append(finding)
         return findings
+
+    def _extract_class_rule_interaction(
+        self,
+        drug_a: DrugRecord,
+        drug_b: DrugRecord,
+    ) -> InteractionFinding | None:
+        tags_a = self._normalize_drug_classes(drug_a)
+        tags_b = self._normalize_drug_classes(drug_b)
+        pair_tags = tags_a | tags_b
+
+        matches: list[dict] = []
+        for rule in _CLASS_RULES:
+            required = set(rule["classes"])
+            if required.issubset(pair_tags):
+                if required.issubset(tags_a) or required.issubset(tags_b):
+                    continue
+                matches.append(rule)
+
+        if not matches:
+            return None
+
+        best = max(matches, key=lambda item: self._severity_rank(item["severity"]))
+        return InteractionFinding(
+            id="",
+            drug_a=drug_a.name,
+            drug_b=drug_b.name,
+            severity=best["severity"],
+            severity_score=0.0,
+            mechanism=best["mechanism"],
+            description=best["description"],
+            source="class-rule",
+        )
+
+    def _normalize_drug_classes(self, drug: DrugRecord) -> set[str]:
+        terms = [drug.name.lower()] + [item.lower() for item in drug.classes]
+        tags: set[str] = set()
+
+        for canonical, synonyms in _CLASS_SYNONYMS.items():
+            if any(synonym in term for term in terms for synonym in synonyms):
+                tags.add(canonical)
+
+        if drug.name.lower() in _PPI_DRUGS:
+            tags.add("ppi")
+
+        return tags
+
+    def detect_modifiers(
+        self,
+        drugs: list[DrugRecord],
+        interactions: list[InteractionFinding],
+    ) -> list[ModifierItem]:
+        ppis = [drug.name for drug in drugs if "ppi" in self._normalize_drug_classes(drug)]
+        if not ppis or not interactions:
+            return []
+
+        gi_interaction_ids = [
+            item.id
+            for item in interactions
+            if any(term in f"{item.description} {item.mechanism}".lower() for term in ["gi", "gastric", "ulcer", "bleed"])
+        ]
+        if not gi_interaction_ids:
+            return []
+
+        return [
+            ModifierItem(
+                type="protective",
+                drug=drug_name,
+                effect="PPI reduces gastric acid exposure and can lower GI bleeding risk.",
+                applies_to=gi_interaction_ids,
+                severity_delta=-0.2,
+            )
+            for drug_name in ppis
+        ]
+
+    def select_primary_interaction(
+        self,
+        interactions: list[InteractionFinding],
+    ) -> InteractionFinding | None:
+        if not interactions:
+            return None
+
+        def _priority_score(item: InteractionFinding) -> tuple[int, int, float]:
+            lowered = f"{item.description} {item.mechanism}".lower()
+            keyword_weight = max(
+                [weight for term, weight in _PRIMARY_RISK_TERMS.items() if term in lowered],
+                default=0,
+            )
+            return (self._severity_rank(item.severity), keyword_weight, item.severity_score)
+
+        return max(interactions, key=_priority_score)
+
+    def build_risk_summary(
+        self,
+        interactions: list[InteractionFinding],
+        primary_interaction: InteractionFinding | None,
+        modifiers: list[ModifierItem],
+        lang: SupportedLanguage,
+    ) -> str:
+        if not interactions:
+            return (
+                "No clinically significant interaction risk detected from available rules and data."
+                if lang == SupportedLanguage.en
+                else "Kein klinisch relevantes Interaktionsrisiko aus verfugbaren Regeln und Daten erkannt."
+            )
+
+        if primary_interaction is None:
+            return (
+                "Interaction risk detected; monitor symptoms and review treatment plan."
+                if lang == SupportedLanguage.en
+                else "Interaktionsrisiko erkannt; Symptome uberwachen und Therapieplan prufen."
+            )
+
+        if not modifiers:
+            return (
+                f"Primary interaction: {primary_interaction.drug_a} + {primary_interaction.drug_b}. "
+                "Risk is increased and should be monitored closely."
+                if lang == SupportedLanguage.en
+                else f"Primare Interaktion: {primary_interaction.drug_a} + {primary_interaction.drug_b}. "
+                "Das Risiko ist erhoht und sollte engmaschig uberwacht werden."
+            )
+
+        protective_names = ", ".join(sorted({item.drug for item in modifiers}))
+        return (
+            f"Primary interaction: {primary_interaction.drug_a} + {primary_interaction.drug_b}. "
+            f"Risk is increased by this combination and partially reduced by {protective_names}."
+            if lang == SupportedLanguage.en
+            else f"Primare Interaktion: {primary_interaction.drug_a} + {primary_interaction.drug_b}. "
+            f"Das Risiko ist durch die Kombination erhoht und wird durch {protective_names} teilweise reduziert."
+        )
 
     async def _get_live_or_cached_interaction(
         self,

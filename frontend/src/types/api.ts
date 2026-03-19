@@ -26,6 +26,14 @@ export interface InteractionFinding {
   source: string;
 }
 
+export interface ModifierItem {
+  type: string;
+  drug: string;
+  effect: string;
+  applies_to: string[];
+  severity_delta: number;
+}
+
 export interface SideEffectAggregate {
   id: string;
   side_effect: string;
@@ -48,6 +56,9 @@ export interface CheckInteractionsResponse {
   overall_severity: SeverityLevel;
   overall_severity_score: number;
   interactions: InteractionFinding[];
+  primary_interaction?: InteractionFinding | null;
+  modifiers?: ModifierItem[];
+  risk_summary?: string;
   overlapping_side_effects: SideEffectAggregate[];
   monitoring_notes: string[];
   warnings: WarningItem[];

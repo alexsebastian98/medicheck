@@ -37,7 +37,7 @@ class AIExplainer:
                 max_output_tokens=280,
             )
             text = response.output_text.strip()
-            simple, clinical = self._split_output(text, overall_severity, lang)
+            simple, clinical = self._split_output(text, interactions, overall_severity, lang)
             return simple, clinical
         except Exception:
             return self._template_fallback(interactions, overall_severity, lang)
@@ -58,6 +58,7 @@ class AIExplainer:
     def _split_output(
         self,
         text: str,
+        interactions: list[InteractionFinding],
         severity: SeverityLevel,
         lang: SupportedLanguage,
     ) -> tuple[str, str]:
@@ -70,7 +71,7 @@ class AIExplainer:
                 clinical = line.split(":", 1)[1].strip()
 
         if not simple or not clinical:
-            return self._template_fallback([], severity, lang)
+            return self._template_fallback(interactions, severity, lang)
         return simple, clinical
 
     def _template_fallback(
@@ -79,24 +80,47 @@ class AIExplainer:
         severity: SeverityLevel,
         lang: SupportedLanguage,
     ) -> tuple[str, str]:
+        top = None
+        if interactions:
+            top = max(
+                interactions,
+                key=lambda item: {
+                    SeverityLevel.low: 1,
+                    SeverityLevel.moderate: 2,
+                    SeverityLevel.high: 3,
+                }[item.severity],
+            )
+
         if lang == SupportedLanguage.de:
             simple = (
-                "Diese Arzneimittelkombination kann relevante Nebenwirkungen verursachen. "
-                "Lassen Sie die Kombination in der Apotheke oder ärztlich prüfen."
+                "Diese Arzneimittelkombination kann relevante Risiken verursachen. "
+                "Bitte lassen Sie die Kombination arztlich oder in der Apotheke prufen."
             )
-            clinical = (
-                "Es wurden pharmakodynamische/klinisch relevante Interaktionen identifiziert "
-                f"(Gesamtrisiko: {severity.value}). Eine strukturierte Medikationsprüfung wird empfohlen."
-            )
+            if top is None:
+                clinical = (
+                    f"Klinisch relevante Risiken erkannt (Gesamtrisiko: {severity.value}). "
+                    "Eine strukturierte Medikationsprufung wird empfohlen."
+                )
+            else:
+                clinical = (
+                    f"{top.drug_a} + {top.drug_b}: {top.description} "
+                    f"Mechanismus: {top.mechanism}. Gesamtrisiko: {severity.value}."
+                )
         else:
             simple = (
-                "This medication combination may cause meaningful side effects. "
+                "This medication combination may cause meaningful clinical risk. "
                 "Please review it with a pharmacist or physician."
             )
-            clinical = (
-                "Clinically relevant pharmacodynamic interactions were identified "
-                f"(overall risk: {severity.value}). Structured medication review is recommended."
-            )
+            if top is None:
+                clinical = (
+                    f"Clinically relevant risks were identified (overall risk: {severity.value}). "
+                    "Structured medication review is recommended."
+                )
+            else:
+                clinical = (
+                    f"{top.drug_a} + {top.drug_b}: {top.description} "
+                    f"Mechanism: {top.mechanism}. Overall risk: {severity.value}."
+                )
         return simple, clinical
 
     def _safe_no_interaction_text(self, lang: SupportedLanguage) -> tuple[str, str]:

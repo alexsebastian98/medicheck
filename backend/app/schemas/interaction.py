@@ -62,6 +62,13 @@ class WarningItem(BaseModel):
     message: str
     severity: SeverityLevel
 
+class ModifierItem(BaseModel):
+    type: str
+    drug: str
+    effect: str
+    applies_to: list[str] = Field(default_factory=list)
+    severity_delta: float = Field(ge=-1.0, le=1.0)
+
 
 class CheckInteractionsResponse(BaseModel):
     request_id: str
@@ -71,6 +78,9 @@ class CheckInteractionsResponse(BaseModel):
     overall_severity: SeverityLevel
     overall_severity_score: float = Field(ge=0.0, le=1.0)
     interactions: list[InteractionFinding]
+    primary_interaction: InteractionFinding | None = None
+    modifiers: list[ModifierItem] = Field(default_factory=list)
+    risk_summary: str = ""
     overlapping_side_effects: list[SideEffectAggregate]
     monitoring_notes: list[str]
     warnings: list[WarningItem]

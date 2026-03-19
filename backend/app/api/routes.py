@@ -69,6 +69,9 @@ async def check_interactions(
     for interaction in interactions:
         interaction.severity_score = severity_engine.score_for(interaction.severity)
 
+    primary_interaction = interaction_engine.select_primary_interaction(interactions)
+    modifiers = interaction_engine.detect_modifiers(drug_records, interactions)
+
     side_effects = interaction_engine.aggregate_side_effects(drug_records)
     monitoring_notes = interaction_engine.build_monitoring_notes(
         drug_records,
@@ -87,7 +90,13 @@ async def check_interactions(
         )
     )
 
-    overall = severity_engine.derive_overall(interactions, warnings)
+    overall = severity_engine.derive_overall(interactions, warnings, modifiers)
+    risk_summary = interaction_engine.build_risk_summary(
+        interactions,
+        primary_interaction,
+        modifiers,
+        payload.lang,
+    )
     patient_explanation, clinical_explanation = await ai_explainer.generate_explanations(
         interactions,
         overall,
@@ -102,6 +111,9 @@ async def check_interactions(
         overall_severity=overall,
         overall_severity_score=severity_engine.score_for(overall),
         interactions=interactions,
+        primary_interaction=primary_interaction,
+        modifiers=modifiers,
+        risk_summary=risk_summary,
         overlapping_side_effects=side_effects,
         monitoring_notes=monitoring_notes,
         warnings=warnings,
